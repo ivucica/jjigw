@@ -198,7 +198,7 @@ class Component(pyxmpp.jabberd.component.Component):
             return 1
         iq=iq.make_result_response()
         q=iq.new_query("jabber:iq:register")
-        q.newTextChild(q.ns(),"instructions","Enter anything below.")
+        q.newTextChild(q.ns(),"instructions","Enter nickname and network password.")
         q.newChild(q.ns(),"username",None)
         q.newChild(q.ns(),"password",None)
         self.stream.send(iq)
@@ -230,9 +230,18 @@ class Component(pyxmpp.jabberd.component.Component):
             password=password[0].getContent()
         else:
             password=u""
+
+        try:
+            with open("regs/%s" % iq.get_from().bare(), "w") as f:
+                f.write("%s\n%s" % (username, password))
+        except Exception as ex:
+            m=Message(from_jid=iq.get_to(),to_jid=iq.get_from(),stanza_type="chat",
+                    body=u"Exception registering with username '%s': %s" % (username,ex))
+            self.stream.send(m)
+            return 1
+
         m=Message(from_jid=iq.get_to(),to_jid=iq.get_from(),stanza_type="chat",
-                body=u"Registered with username '%s' and password '%s'"
-                " (both ignored)" % (username,password))
+                body=u"Registered with username '%s' and password '%s'" % (username,password))
         self.stream.send(m)
         p=Presence(from_jid=iq.get_to(),to_jid=iq.get_from(),stanza_type="subscribe")
         self.stream.send(p)

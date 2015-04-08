@@ -54,6 +54,13 @@ class IRCSession:
         self.nick=nick
         # Insert some sort of password lookup here if required
         self.password=self.network.password
+
+        try:
+            with open("regs/%s" % jid.bare()) as f:
+                self.nick, self.password = map(str.strip, f.readlines())
+        except:
+            pass
+
         if self.component.profile:
             ttarget=self.thread_run_prof
         else:
@@ -410,10 +417,26 @@ class IRCSession:
             thread=str(random.random())
             fr=None
             user.current_thread=typ,thread,None
+        do_invite = False
+        if params[0][0]=='#':
+            # This should be a PM but it was still aimed at a channel.
+            # Invite the user and send the message from the channel.
+            fr='%s@%s/%s' % (params[0], self.network.jid.domain, user.nick)
+            do_invite=True
         if not fr:
             fr=user.jid()
         body=unicode(params[1],self.default_encoding,"replace")
         m=Message(stanza_type=typ,from_jid=fr,to_jid=self.jid,body=remove_evil_characters(strip_colors(body)))
+        if do_invite:
+            # <x tag>
+            x = m.xmlnode.newTextChild(None, 'x', None)
+            x.setNs(x.newNs('http://jabber.org/protocol/muc#user', None))
+
+            # <invite to="buddy to invite"><reason>Plz come chat</reason></invite>
+            invite = x.newTextChild(None, 'invite', None)
+            invite.setProp('to', self.jid)
+            reason = invite.newTextChild(None, 'reason', '(You are not in the channel yet.)')
+
         self.component.send(m)
 
     def login_error(self,join_condition,message_condition):
